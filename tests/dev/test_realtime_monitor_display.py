@@ -18,18 +18,20 @@ def test_status_display_line_count():
         """Build output lines like _status_worker does."""
         lines = [status_line]
         if recent_msgs:
-            lines.append(f"Recent MQTT:")  # No \n prefix
+            lines.append(f"\nRecent MQTT:")  # This has \n prefix
             for msg in recent_msgs:
                 lines.append(f"  → {msg}")
         
-        return lines
+        output = "\n".join(lines)
+        lines_to_print = output.split("\n")
+        return lines_to_print
     
     # Test with 1 message
     status = "Alive 00:00:01 | REST polls=1 | MQTT msgs=1"
     msgs = ["12:00:01 properties_changed: [...]"]
     lines = build_display_output(status, msgs)
-    # Expected: status_line, "Recent MQTT:", "  → msg"
-    assert len(lines) == 3, f"Expected 3 lines with 1 msg, got {len(lines)}: {lines}"
+    # Expected: status_line, "", "Recent MQTT:", "  → msg"
+    assert len(lines) == 4, f"Expected 4 lines with 1 msg, got {len(lines)}: {lines}"
     
     # Test with 5 messages
     msgs = [
@@ -40,12 +42,12 @@ def test_status_display_line_count():
         "12:00:05 properties_changed: [...]",
     ]
     lines = build_display_output(status, msgs)
-    # Expected: status_line, "Recent MQTT:", 5x "  → msg"
-    assert len(lines) == 7, f"Expected 7 lines with 5 msgs, got {len(lines)}: {lines}"
+    # Expected: status_line, "", "Recent MQTT:", 5x "  → msg"
+    assert len(lines) == 8, f"Expected 8 lines with 5 msgs, got {len(lines)}: {lines}"
     
-    # Verify no empty lines
-    assert lines[0] == status, f"Expected status at index 0"
-    assert lines[1] == "Recent MQTT:", f"Expected 'Recent MQTT:' at index 1, got: {lines[1]}"
+    # Verify there's an empty line (from the \n prefix)
+    assert lines[1] == "", f"Expected empty line at index 1, got: {lines[1]}"
+    assert lines[2] == "Recent MQTT:", f"Expected 'Recent MQTT:' at index 2, got: {lines[2]}"
     
     # Test with 6 messages (deque maxlen=5, so still only 5 messages displayed)
     # This simulates what happens when 6th message arrives - oldest drops off
@@ -57,8 +59,8 @@ def test_status_display_line_count():
         "12:00:06 properties_changed: [...]",
     ]
     lines = build_display_output(status, msgs)
-    # Still 7 lines: status_line, "Recent MQTT:", 5x "  → msg"
-    assert len(lines) == 7, f"Expected 7 lines with 5 msgs (after 6th), got {len(lines)}: {lines}"
+    # Still 8 lines: status_line, "", "Recent MQTT:", 5x "  → msg"
+    assert len(lines) == 8, f"Expected 8 lines with 5 msgs (after 6th), got {len(lines)}: {lines}"
 
 
 def test_status_display_inline_updates():
@@ -92,12 +94,14 @@ def test_status_display_inline_updates():
     msgs = ["12:00:01 properties_changed: [...]"]
     lines = [status]
     if msgs:
-        lines.append(f"Recent MQTT:")
+        lines.append(f"\nRecent MQTT:")
         for msg in msgs:
             lines.append(f"  → {msg}")
+    output = "\n".join(lines)
+    lines_to_print = output.split("\n")
     
-    prev_lines = simulate_display(lines, 0, True)
-    assert prev_lines == 3
+    prev_lines = simulate_display(lines_to_print, 0, True)
+    assert prev_lines == 4
     
     # Second update with 5 messages (should move cursor up by prev_lines)
     status = "Alive 00:00:02 | REST polls=1 | MQTT msgs=5"
@@ -110,20 +114,22 @@ def test_status_display_inline_updates():
     ]
     lines = [status]
     if msgs:
-        lines.append(f"Recent MQTT:")
+        lines.append(f"\nRecent MQTT:")
         for msg in msgs:
             lines.append(f"  → {msg}")
+    output = "\n".join(lines)
+    lines_to_print = output.split("\n")
     
-    prev_lines = simulate_display(lines, prev_lines, False)
-    assert prev_lines == 7
+    prev_lines = simulate_display(lines_to_print, prev_lines, False)
+    assert prev_lines == 8
     
     # Verify the output contains cursor movement
     result = output_buffer.getvalue()
-    assert "\033[3A" in result, "Should contain cursor up 3 command"
-    assert result.count("\033[2K") >= 7, "Should clear at least 7 lines"
+    assert "\033[4A" in result, "Should contain cursor up command"
+    assert result.count("\033[2K") >= 8, "Should clear at least 8 lines"
     
     # Third update: 6th message arrives (deque keeps only last 5)
-    # Should still be 7 lines and cursor should move up by 7
+    # Should still be 8 lines and cursor should move up by 8
     status = "Alive 00:00:03 | REST polls=1 | MQTT msgs=6"
     msgs = [
         "12:00:02 properties_changed: [...]",  # First dropped
@@ -134,16 +140,18 @@ def test_status_display_inline_updates():
     ]
     lines = [status]
     if msgs:
-        lines.append(f"Recent MQTT:")
+        lines.append(f"\nRecent MQTT:")
         for msg in msgs:
             lines.append(f"  → {msg}")
+    output = "\n".join(lines)
+    lines_to_print = output.split("\n")
     
-    prev_lines = simulate_display(lines, prev_lines, False)
-    assert prev_lines == 7, "Should still be 7 lines with 6th message"
+    prev_lines = simulate_display(lines_to_print, prev_lines, False)
+    assert prev_lines == 8, "Should still be 8 lines with 6th message"
     
-    # Verify cursor moved up by 7
+    # Verify cursor moved up by 8
     result = output_buffer.getvalue()
-    assert "\033[7A" in result, "Should contain cursor up 7 command for stable display"
+    assert "\033[8A" in result, "Should contain cursor up 8 command for stable display"
     
     # Fourth update: Simulate time passing - status line changes but message count stays at 5
     # This tests that the display continues to work inline when only status updates
@@ -157,14 +165,16 @@ def test_status_display_inline_updates():
     ]
     lines = [status]
     if msgs:
-        lines.append(f"Recent MQTT:")
+        lines.append(f"\nRecent MQTT:")
         for msg in msgs:
             lines.append(f"  → {msg}")
+    output = "\n".join(lines)
+    lines_to_print = output.split("\n")
     
-    prev_lines = simulate_display(lines, prev_lines, False)
-    assert prev_lines == 7, "Should maintain 7 lines with ongoing updates"
+    prev_lines = simulate_display(lines_to_print, prev_lines, False)
+    assert prev_lines == 8, "Should maintain 8 lines with ongoing updates"
     
     # Verify multiple cursor up commands exist (one for each update after first)
     result = output_buffer.getvalue()
-    cursor_up_count = result.count("\033[7A")
-    assert cursor_up_count >= 2, f"Should have at least 2 cursor up 7 commands, found {cursor_up_count}"
+    cursor_up_count = result.count("\033[8A")
+    assert cursor_up_count >= 2, f"Should have at least 2 cursor up 8 commands, found {cursor_up_count}"
