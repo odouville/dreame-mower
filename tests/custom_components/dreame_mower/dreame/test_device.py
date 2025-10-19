@@ -663,3 +663,220 @@ def test_service2_property_63_handling():
     # Verify that no property change notification was sent (returns False for crowdsourcing)
     service2_63_changes = [change for change in property_changes if change[0] == "service2_property_63"]
     assert len(service2_63_changes) == 0  # Should not notify since we return False
+
+
+@pytest.mark.asyncio
+async def test_mission_completion_caps_progress_at_100_percent(device):
+    """Test that mission completion event caps progress at 100% (issue #47)."""
+    property_changes = []
+    
+    def property_change_callback(name, value):
+        property_changes.append((name, value))
+    
+    device.register_property_callback(property_change_callback)
+    
+    # First, simulate progress at 96% via pose coverage property (1:4)
+    # Create payload with 96/100 sqm progress
+    progress_message = {
+        'method': 'properties_changed',
+        'params': [{
+            'siid': 1, 
+            'piid': 4,
+            'value': [
+                0xCE,  # Start sentinel
+                100, 0,  # X
+                200, 0,  # Y
+                0, 0,  # padding
+                45, 0,  # Heading
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  # other data
+                5, 0,  # Segment
+                0,  # padding
+                16, 39,  # Total: 10000 centi-sqm (100 sqm)
+                0,  # padding
+                128, 37,  # Current: 9600 centi-sqm (96 sqm)
+                0,  # padding
+                0xCE  # End sentinel
+            ]
+        }]
+    }
+    
+    device._handle_message(progress_message)
+    
+    # Verify progress is 96%
+    assert device.mowing_progress_percent == 96.0
+    
+    # Now simulate mission completion event (4:1) with 96% in the event
+    completion_event = {
+        'method': 'event_occured',
+        'params': {
+            'siid': 4,
+            'eiid': 1,
+            'arguments': [
+                {'piid': 1, 'value': 96},  # Progress percent
+                {'piid': 2, 'value': 45},  # Duration minutes
+                {'piid': 3, 'value': 9600},  # Area (96.00 sqm in centi-sqm)
+                {'piid': 8, 'value': 1729000000},  # Start timestamp
+            ]
+        }
+    }
+    
+    device._handle_message(completion_event)
+    
+    # After mission completion, progress should be capped at 100%
+    assert device.mowing_progress_percent == 100.0
+    
+    # Verify mission completion event was processed
+    completion_events = [change for change in property_changes if change[0] == "mission_completion_event"]
+    assert len(completion_events) > 0
+
+
+@pytest.mark.asyncio
+async def test_status_change_to_mowing_resets_mission_completion(device):
+    """Test that status change to mowing resets mission completion flag."""
+    property_changes = []
+    
+    def property_change_callback(name, value):
+        property_changes.append((name, value))
+    
+    device.register_property_callback(property_change_callback)
+    
+    # First, complete a mission with 96% progress
+    device._pose_coverage_handler._progress_percent = 96.0
+    device._pose_coverage_handler.mark_mission_completed()
+    assert device.mowing_progress_percent == 100.0
+    assert device._pose_coverage_handler._mission_completed is True
+    
+    # Now simulate status change to mowing (status code 1)
+    status_message = {
+        'method': 'properties_changed',
+        'params': [{'siid': 2, 'piid': 1, 'value': 1}]  # Status = 1 (mowing)
+    }
+    
+    device._handle_message(status_message)
+    
+    # Mission completion flag should be reset
+    assert device._pose_coverage_handler._mission_completed is False
+    
+    # Verify status change was notified
+    status_changes = [change for change in property_changes if change[0] == "status"]
+    assert len(status_changes) > 0
+    assert status_changes[-1][1] == 1
+
+
+@pytest.mark.asyncio
+async def test_start_mowing_resets_mission_completion_flag(device):
+    """Test that start_mowing resets mission completion flag for new mission."""
+    device._cloud_device.set_connected_state(True)
+    await device.connect()
+    
+    # Simulate completed mission
+    device._pose_coverage_handler._progress_percent = 96.0
+    device._pose_coverage_handler.mark_mission_completed()
+    assert device.mowing_progress_percent == 100.0
+    assert device._pose_coverage_handler._mission_completed is True
+    
+    # Start new mowing session
+    result = await device.start_mowing()
+    assert result is True
+    
+    # Mission completion flag should be reset
+    assert device._pose_coverage_handler._mission_completed is False
+
+
+@pytest.mark.asyncio
+async def test_full_mission_lifecycle_workflow(device):
+    """Test complete mission lifecycle: start -> progress -> complete -> start new."""
+    property_changes = []
+    
+    def property_change_callback(name, value):
+        property_changes.append((name, value))
+    
+    device.register_property_callback(property_change_callback)
+    device._cloud_device.set_connected_state(True)
+    await device.connect()
+    
+    # Step 1: Start mowing
+    await device.start_mowing()
+    assert device._pose_coverage_handler._mission_completed is False
+    
+    # Step 2: Simulate progress updates during mowing (50%, then 96%)
+    progress_50 = {
+        'method': 'properties_changed',
+        'params': [{
+            'siid': 1, 'piid': 4,
+            'value': [
+                0xCE, 100, 0, 200, 0, 0, 0, 45, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                5, 0, 0, 16, 39, 0, 136, 19, 0, 0xCE
+            ]
+        }]
+    }
+    device._handle_message(progress_50)
+    assert device.mowing_progress_percent == 50.0
+    
+    progress_96 = {
+        'method': 'properties_changed',
+        'params': [{
+            'siid': 1, 'piid': 4,
+            'value': [
+                0xCE, 150, 0, 250, 0, 0, 0, 90, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                8, 0, 0, 16, 39, 0, 128, 37, 0, 0xCE
+            ]
+        }]
+    }
+    device._handle_message(progress_96)
+    assert device.mowing_progress_percent == 96.0
+    
+    # Step 3: Mission completes - receive completion event
+    completion_event = {
+        'method': 'event_occured',
+        'params': {
+            'siid': 4, 'eiid': 1,
+            'arguments': [
+                {'piid': 1, 'value': 96},
+                {'piid': 2, 'value': 45},
+                {'piid': 3, 'value': 9600},
+                {'piid': 8, 'value': 1729000000},
+            ]
+        }
+    }
+    device._handle_message(completion_event)
+    
+    # Progress should now be capped at 100%
+    assert device.mowing_progress_percent == 100.0
+    assert device._pose_coverage_handler._mission_completed is True
+    
+    # Step 4: Status changes to docked (charging complete = 13)
+    docked_message = {
+        'method': 'properties_changed',
+        'params': [{'siid': 2, 'piid': 1, 'value': 13}]
+    }
+    device._handle_message(docked_message)
+    
+    # Mission completion flag should still be True
+    assert device._pose_coverage_handler._mission_completed is True
+    
+    # Step 5: Start new mission
+    await device.start_mowing()
+    
+    # Mission completion flag should be reset
+    assert device._pose_coverage_handler._mission_completed is False
+    
+    # Step 6: New mission progress should not be capped
+    progress_30 = {
+        'method': 'properties_changed',
+        'params': [{
+            'siid': 1, 'piid': 4,
+            'value': [
+                0xCE, 50, 0, 100, 0, 0, 0, 30, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                2, 0, 0, 16, 39, 0, 184, 11, 0, 0xCE
+            ]
+        }]
+    }
+    device._handle_message(progress_30)
+    
+    # Should show actual progress, not capped
+    assert device.mowing_progress_percent == 30.0
+

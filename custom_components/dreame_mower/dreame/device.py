@@ -527,6 +527,9 @@ class DreameMowerDevice:
                 old_status_code = self._status_code
                 self._status_code = status_code
                 if old_status_code != status_code:
+                    # Reset mission completion flag when mowing starts (status 1)
+                    if status_code == 1:  # 1 = mowing
+                        self._pose_coverage_handler.reset_mission_completion()
                     self._notify_property_change(STATUS_PROPERTY.name, status_code)
             elif BLUETOOTH_PROPERTY.matches(siid, piid):
                 bluetooth_value = bool(message["value"])
@@ -765,6 +768,9 @@ class DreameMowerDevice:
                     # Signal that mission is completed for stop-then-dock sequence
                     self._mission_completed_event.set()
                     
+                    # Mark mission as completed in pose coverage handler to cap progress at 100%
+                    self._pose_coverage_handler.mark_mission_completed()
+                    
                     if self._mission_completion_handler.has_data_file:
                         self._mission_completion_handler.download_and_set_data_file(
                             self._cloud_device.get_file_download_url, self._hass_config_dir
@@ -862,6 +868,10 @@ class DreameMowerDevice:
         ):
             _LOGGER.error("Failed to send START_MOWING command")
             return False
+        
+        # Reset mission completion flag for new mowing session
+        self._pose_coverage_handler.reset_mission_completion()
+        
         self._notify_property_change("activity", "mowing")
         return True
 

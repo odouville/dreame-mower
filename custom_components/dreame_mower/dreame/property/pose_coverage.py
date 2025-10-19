@@ -58,6 +58,7 @@ class PoseCoverageHandler:
         self._current_area_sqm: float | None = None
         self._total_area_sqm: float | None = None
         self._progress_percent: float | None = None
+        self._mission_completed: bool = False  # Flag to indicate mission completion
         
         # Coordinate tracking
         self._x_coordinate: int | None = None
@@ -126,6 +127,10 @@ class PoseCoverageHandler:
             progress_percent = 0.0
             if total_area_sqm > 0:
                 progress_percent = min(100.0, (current_area_sqm / total_area_sqm) * 100.0)
+            
+            # If mission is marked as completed, cap progress at 100%
+            if self._mission_completed and progress_percent > 0:
+                progress_percent = 100.0
             
             # Update state
             self._x_coordinate = x
@@ -253,6 +258,27 @@ class PoseCoverageHandler:
         """Clear the path history (e.g., when a new mowing session starts)."""
         self._path_history.clear()
         _LOGGER.debug("Path history cleared")
+    
+    def mark_mission_completed(self) -> None:
+        """Mark the current mission as completed.
+        
+        This will cap the progress percentage at 100% even if the calculated
+        progress based on area is slightly less (e.g., 96%).
+        Called when a mission completion event is received.
+        """
+        self._mission_completed = True
+        # Update progress to 100% if we have valid data
+        if self._progress_percent is not None and self._progress_percent > 0:
+            self._progress_percent = 100.0
+        _LOGGER.debug("Mission marked as completed, progress set to 100%%")
+    
+    def reset_mission_completion(self) -> None:
+        """Reset the mission completion flag for a new mission.
+        
+        Called when a new mowing session starts to allow normal progress tracking.
+        """
+        self._mission_completed = False
+        _LOGGER.debug("Mission completion flag reset")
 
 
 # Unified property handler combining both functionalities
