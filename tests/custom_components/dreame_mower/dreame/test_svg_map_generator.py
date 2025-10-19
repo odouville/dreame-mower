@@ -1,5 +1,9 @@
 """Tests for svg_map_generator module."""
 
+import json
+from pathlib import Path
+from unittest.mock import Mock
+
 import pytest
 from custom_components.dreame_mower.dreame.svg_map_generator import (
     calculate_bounds,
@@ -11,7 +15,29 @@ from custom_components.dreame_mower.dreame.svg_map_generator import (
     svg_dashed_path,
     svg_text_with_background,
     finish_svg_document,
+    generate_svg_map_image,
 )
+
+
+# Path to test data
+TEST_DATA_DIR = Path(__file__).parent / "test_data"
+GOLDEN_JSON_FILE = TEST_DATA_DIR / "test_svg_map_generator.json"
+
+
+@pytest.fixture
+def golden_map_data():
+    """Load the golden JSON test data."""
+    with open(GOLDEN_JSON_FILE, 'r') as f:
+        return json.load(f)
+
+
+@pytest.fixture
+def mock_coordinator():
+    """Create a mock coordinator for map generation tests."""
+    coordinator = Mock()
+    coordinator.device = Mock()
+    coordinator.device.mower_coordinates = None
+    return coordinator
 
 
 class TestCalculateBounds:
@@ -253,3 +279,76 @@ class TestFinishSvgDocument:
         result = finish_svg_document(svg_lines)
         assert result.endswith(expected_ending)
         assert "\n" in result or len(svg_lines) <= 1  # Contains newlines or is very short
+
+
+class TestMapRotation:
+    """Test suite for map rotation functionality."""
+
+    def test_generate_rotated_svg_90_degrees(self, golden_map_data, mock_coordinator):
+        """Test generating a 90-degree rotated map.
+        
+        This test verifies that the rotation feature works correctly by generating
+        a rotated SVG and checking for the proper rotation transform attributes.
+        The output is saved for visual inspection.
+        """
+        # Generate SVG with 90-degree rotation
+        result = generate_svg_map_image(golden_map_data, None, mock_coordinator, rotation=90)
+        
+        # Save to rotated output file for visual inspection
+        rotated_svg_file = TEST_DATA_DIR / "test_svg_map_generator_rotated_90_actual.svg"
+        with open(rotated_svg_file, 'wb') as f:
+            f.write(result)
+        
+        # Verify the file was written
+        assert rotated_svg_file.exists()
+        assert rotated_svg_file.stat().st_size > 0
+        
+        # Basic validation that it's valid SVG
+        svg_output = result.decode('utf-8')
+        assert svg_output.startswith('<?xml')
+        assert '<svg' in svg_output
+        assert '</svg>' in svg_output
+        
+        # Verify rotation transform is present (600, 600 because MAP_IMAGE_WIDTH/HEIGHT = 1200)
+        assert 'transform="rotate(90, 600, 600)"' in svg_output, (
+            "SVG should contain rotation transform for 90 degrees centered at (600, 600)"
+        )
+        
+        # Verify the rotation group is properly opened and closed
+        assert '<g transform="rotate(90, 600, 600)">' in svg_output
+        assert svg_output.count('</g>') >= 1
+        
+        # Verify title is NOT inside the rotation group (should appear after </g>)
+        rotation_close_idx = svg_output.find('</g>')
+        title_idx = svg_output.find('Dreame Mower Map (Current)')
+        assert title_idx > rotation_close_idx, (
+            "Title should appear after rotation group closes (not be rotated)"
+        )
+
+    def test_generate_rotated_svg_180_degrees(self, golden_map_data, mock_coordinator):
+        """Test generating a 180-degree rotated map."""
+        result = generate_svg_map_image(golden_map_data, None, mock_coordinator, rotation=180)
+        
+        svg_output = result.decode('utf-8')
+        assert 'transform="rotate(180, 600, 600)"' in svg_output
+        assert '<g transform="rotate(180, 600, 600)">' in svg_output
+
+    def test_generate_rotated_svg_270_degrees(self, golden_map_data, mock_coordinator):
+        """Test generating a 270-degree rotated map."""
+        result = generate_svg_map_image(golden_map_data, None, mock_coordinator, rotation=270)
+        
+        svg_output = result.decode('utf-8')
+        assert 'transform="rotate(270, 600, 600)"' in svg_output
+        assert '<g transform="rotate(270, 600, 600)">' in svg_output
+
+    def test_generate_unrotated_svg(self, golden_map_data, mock_coordinator):
+        """Test generating a map with no rotation (0 degrees).
+        
+        When rotation is 0, no rotation transform should be present.
+        """
+        result = generate_svg_map_image(golden_map_data, None, mock_coordinator, rotation=0)
+        
+        svg_output = result.decode('utf-8')
+        # Should NOT contain any rotation transform
+        assert 'transform="rotate(' not in svg_output
+        assert '<g transform="rotate' not in svg_output

@@ -11,9 +11,12 @@ from datetime import datetime
 _LOGGER = logging.getLogger(__name__)
 
 
-# Map visualization constants  
+# Map visualization constants
+# NOTE: Rotation (90°, 180°, 270°) currently only works correctly when WIDTH == HEIGHT (square canvas).
+# Non-square dimensions will cause the rotated content to be clipped or misaligned because
+# the rotated bounding box exceeds the canvas boundaries. Keep these values equal for rotation support.
 MAP_IMAGE_WIDTH = 1200
-MAP_IMAGE_HEIGHT = 1000
+MAP_IMAGE_HEIGHT = 1200
 MAP_PADDING = 50
 
 # Color definitions (hex colors for SVG)
@@ -206,8 +209,16 @@ def finish_svg_document(svg_lines: List[str]) -> str:
 def generate_svg_live_image(live_coordinates: List[Dict[str, Any]], 
                            base_map_boundary: List[List[int]], 
                            current_map_data: Dict[str, Any] | None,
-                           coordinator) -> bytes:
-    """Generate live map image in SVG format with current coordinates overlay."""
+                           coordinator, rotation: int) -> bytes:
+    """Generate live map image in SVG format with current coordinates overlay.
+    
+    Args:
+        live_coordinates: List of live coordinate dictionaries
+        base_map_boundary: Base map boundary points
+        current_map_data: Current map data dictionary or None
+        coordinator: Coordinator instance
+        rotation: Rotation angle in degrees (0, 90, 180, or 270) - required
+    """
     
     # Create SVG document
     svg_lines = create_svg_document(MAP_IMAGE_WIDTH, MAP_IMAGE_HEIGHT, COLORS_SVG['live_background'])
@@ -239,6 +250,12 @@ def generate_svg_live_image(live_coordinates: List[Dict[str, Any]],
         else:
             # Calculate coordinate bounds
             bounds = calculate_bounds(all_points)
+            
+            # Start rotation group if rotation is specified (only for map content)
+            if rotation in [90, 180, 270]:
+                center_x = MAP_IMAGE_WIDTH // 2
+                center_y = MAP_IMAGE_HEIGHT // 2
+                svg_lines.append(f'<g transform="rotate({rotation}, {center_x}, {center_y})">')
             
             # Draw base map boundary if available (reference area)
             if base_map_boundary:
@@ -293,8 +310,12 @@ def generate_svg_live_image(live_coordinates: List[Dict[str, Any]],
                                           MAP_IMAGE_WIDTH, MAP_IMAGE_HEIGHT, 8,
                                           COLORS_SVG['current_position'], '#8b0000')
                 svg_lines.append(current_circle)
+            
+            # Close rotation group if it was opened
+            if rotation in [90, 180, 270]:
+                svg_lines.append('</g>')
         
-        # Draw title
+        # Draw title (outside rotation group)
         title_text = "Dreame Mower - LIVE TRACKING MODE"
         svg_lines.append(f'<text x="{MAP_IMAGE_WIDTH // 2}" y="30" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="#8b0000" text-anchor="middle">{title_text}</text>')
         
@@ -369,8 +390,15 @@ def generate_svg_live_image(live_coordinates: List[Dict[str, Any]],
     return result_bytes
 
 
-def generate_svg_map_image(data: Dict[str, Any], historical_file_path: str | None, coordinator) -> bytes:
-    """Generate map image in SVG format from map data."""
+def generate_svg_map_image(data: Dict[str, Any], historical_file_path: str | None, coordinator, rotation: int) -> bytes:
+    """Generate map image in SVG format from map data.
+    
+    Args:
+        data: Map data dictionary
+        historical_file_path: Path to historical map file or None for current map
+        coordinator: Coordinator instance
+        rotation: Rotation angle in degrees (0, 90, 180, or 270) - required
+    """
     
     # Create SVG document
     svg_lines = create_svg_document(MAP_IMAGE_WIDTH, MAP_IMAGE_HEIGHT, COLORS_SVG['background'])
@@ -448,6 +476,12 @@ def generate_svg_map_image(data: Dict[str, Any], historical_file_path: str | Non
             # Calculate coordinate bounds
             bounds = calculate_bounds(all_points)
             
+            # Start rotation group if rotation is specified (only for map content)
+            if rotation in [90, 180, 270]:
+                center_x = MAP_IMAGE_WIDTH // 2
+                center_y = MAP_IMAGE_HEIGHT // 2
+                svg_lines.append(f'<g transform="rotate({rotation}, {center_x}, {center_y})">')
+            
             # Draw main mowing path segments (map boundary)
             if segments:
                 boundary_path = svg_path_from_segments(segments, bounds, MAP_IMAGE_WIDTH, MAP_IMAGE_HEIGHT,
@@ -486,8 +520,12 @@ def generate_svg_map_image(data: Dict[str, Any], historical_file_path: str | Non
                                         MAP_IMAGE_WIDTH, MAP_IMAGE_HEIGHT, 6,
                                         COLORS_SVG['current_position'], COLORS_SVG['text_color'])
                 svg_lines.append(mower_circle)
+            
+            # Close rotation group if it was opened
+            if rotation in [90, 180, 270]:
+                svg_lines.append('</g>')
         
-        # Draw title
+        # Draw title (outside rotation group)
         import os
         if historical_file_path:
             title = f"Dreame Mower Map (Historical: {os.path.basename(historical_file_path)})"

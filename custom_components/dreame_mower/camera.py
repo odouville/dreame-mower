@@ -271,11 +271,13 @@ class DreameMowerCameraEntity(DreameMowerEntity, Camera):
 
     def _generate_live_image(self) -> bytes:
         """Generate live map image in SVG format with current coordinates overlay."""
+        # TODO: Add rotation configuration option
         return generate_svg_live_image(
             self._live_coordinates,
             self._base_map_boundary,
             self._current_map_data,
-            self.coordinator
+            self.coordinator,
+            rotation=0
         )
 
     @property
@@ -385,7 +387,8 @@ class DreameMowerCameraEntity(DreameMowerEntity, Camera):
 
     def _generate_map_image(self, data: dict[str, Any]) -> bytes:
         """Generate map image in SVG format from map data."""
-        return generate_svg_map_image(data, self._historical_file_path, self.coordinator)
+        # TODO: Add rotation configuration option
+        return generate_svg_map_image(data, self._historical_file_path, self.coordinator, rotation=0)
 
     @property
     def available(self) -> bool:

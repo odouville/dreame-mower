@@ -13,8 +13,8 @@ from custom_components.dreame_mower.coordinator import DreameMowerCoordinator
 
 # Path to test data
 TEST_DATA_DIR = Path(__file__).parent / "dreame" / "test_data"
-GOLDEN_JSON_FILE = TEST_DATA_DIR / "test_svg_map_generator_golden_real.json"
-GOLDEN_SVG_FILE = TEST_DATA_DIR / "test_svg_map_generator_golden_real.svg"
+GOLDEN_JSON_FILE = TEST_DATA_DIR / "test_svg_map_generator.json"
+GOLDEN_SVG_FILE = TEST_DATA_DIR / "test_svg_map_generator_rotated_0_golden.svg"
 
 
 @pytest.fixture
@@ -72,16 +72,14 @@ class TestDreameMowerCameraEntity:
     def test_save_actual_svg_output(self, camera_entity, golden_map_data, golden_svg):
         """Generate and save the actual SVG output for comparison with golden file.
         
-        This test writes the generated SVG to test_svg_map_generator_actual.svg
-        for manual inspection and comparison with the golden reference file.
-        It also compares the actual output with the golden file, allowing only
+        It compares the actual output with the golden file, allowing only
         the timestamp in "Updated: YYYY-MM-DD HH:MM:SS" to differ.
         """
         # Generate SVG from golden data
         result = camera_entity._generate_map_image(golden_map_data)
         
         # Save to actual output file
-        actual_svg_file = TEST_DATA_DIR / "test_svg_map_generator_actual.svg"
+        actual_svg_file = TEST_DATA_DIR / "test_svg_map_generator_rotated_0_actual.svg"
         with open(actual_svg_file, 'wb') as f:
             f.write(result)
         
@@ -108,3 +106,4 @@ class TestDreameMowerCameraEntity:
             "Generated SVG differs from golden file (excluding timestamp). "
             f"Actual file saved to: {actual_svg_file}"
         )
+
