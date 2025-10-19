@@ -50,6 +50,7 @@ import os
 import sys
 import threading
 import time
+from collections import deque
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 from datetime import datetime
@@ -94,6 +95,30 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s:%(name)s:%(message
 
 # File extension for logs (use .jsonl for JSON Lines)
 EXT = ".jsonl"
+
+# ANSI color codes for terminal output
+class Colors:
+    RESET = "\033[0m"
+    BOLD = "\033[1m"
+    # Regular colors
+    RED = "\033[31m"
+    GREEN = "\033[32m"
+    YELLOW = "\033[33m"
+    BLUE = "\033[34m"
+    MAGENTA = "\033[35m"
+    CYAN = "\033[36m"
+    WHITE = "\033[37m"
+    # Bright colors
+    BRIGHT_RED = "\033[91m"
+    BRIGHT_GREEN = "\033[92m"
+    BRIGHT_YELLOW = "\033[93m"
+    BRIGHT_BLUE = "\033[94m"
+    BRIGHT_MAGENTA = "\033[95m"
+    BRIGHT_CYAN = "\033[96m"
+    BRIGHT_WHITE = "\033[97m"
+    # Background colors
+    BG_BLACK = "\033[40m"
+    BG_BLUE = "\033[44m"
 
 # --- Known REST properties (from production const.py + additional discovery properties) ---
 # Build from production PropertyIdentifier objects
@@ -243,6 +268,9 @@ class RealtimeMonitor:
         self._mqtt_message_count = 0
         self._status_interval = status_interval  # seconds (can be overridden by CLI)
         self._status_thread: threading.Thread | None = None
+        # Keep track of recent MQTT messages for display
+        self._recent_mqtt_messages: deque[str] = deque(maxlen=5)
+        self._mqtt_lock = threading.Lock()
 
     # --- Setup & connection ---
     def load_creds(self):
@@ -341,6 +369,11 @@ class RealtimeMonitor:
             self._mqtt_message_count += 1
         except Exception:
             pass
+        
+        # Create human-readable message summary for display
+        msg_summary = self._format_mqtt_message_summary(method, data)
+        with self._mqtt_lock:
+            self._recent_mqtt_messages.append(msg_summary)
         if method == "properties_changed" and isinstance(data.get("params"), list):
             for param in data["params"]:
                 if not isinstance(param, dict):
@@ -382,6 +415,47 @@ class RealtimeMonitor:
         # Minimal inline progress summary
         if method != "properties_changed":
             log.debug("MQTT message handled method=%s", method)
+
+    def _format_mqtt_message_summary(self, method: str, data: Dict[str, Any]) -> str:
+        """Format MQTT message for compact display."""
+        now = datetime.now().astimezone().strftime("%H:%M:%S")
+        
+        if method == "properties_changed":
+            params = data.get("params", [])
+            if isinstance(params, list) and params:
+                # Show first property change
+                first = params[0]
+                if isinstance(first, dict) and "siid" in first and "piid" in first:
+                    siid, piid = first["siid"], first["piid"]
+                    value = first.get("value", "?")
+                    name = KNOWN_PROPERTY_NAMES.get((siid, piid), f"{siid}:{piid}")
+                    suffix = f" +{len(params)-1}" if len(params) > 1 else ""
+                    return f"{now} property_change: {name}={value}{suffix}"
+            return f"{now} properties_changed: {len(params)} props"
+        
+        elif method == "event_occured":
+            params = data.get("params", {})
+            if isinstance(params, dict):
+                siid = params.get("siid")
+                eiid = params.get("eiid")
+                if siid == 4 and eiid == 1:
+                    return f"{now} event: Mission completed (4:1)"
+                return f"{now} event: {siid}:{eiid}"
+            return f"{now} event_occured"
+        
+        elif method == "props":
+            params = data.get("params", {})
+            if isinstance(params, dict):
+                keys = list(params.keys())
+                if keys:
+                    first_key = keys[0]
+                    first_val = params[first_key]
+                    suffix = f" +{len(keys)-1}" if len(keys) > 1 else ""
+                    return f"{now} props: {first_key}={first_val}{suffix}"
+            return f"{now} props update"
+        
+        else:
+            return f"{now} {method}"
 
     def _handle_mission_completion_event(self, params: Dict[str, Any], ts: str):
         """Handle mission completion event (4:1) and download mission data file if available."""
@@ -447,21 +521,58 @@ class RealtimeMonitor:
             log.error("Failed to download mission data file: %s", ex)
 
     def _status_worker(self):
-        """Background thread printing one-line status periodically."""
-        prev_len = 0
+        """Background thread printing multi-line status periodically."""
+        # ANSI codes for cursor control
+        CURSOR_UP = "\033[{}A"  # Move cursor up N lines
+        CLEAR_LINE = "\033[2K"  # Clear entire line
+        CURSOR_START = "\r"     # Move cursor to start of line
+        
+        prev_lines = 0
+        first_display = True
+        
         while not self.stop_event.wait(self._status_interval):
             uptime = int(time.time() - self._start_time) if self._start_time else 0
             hrs, rem = divmod(uptime, 3600)
             mins, secs = divmod(rem, 60)
-            status = (
-                f"Alive {hrs:02d}:{mins:02d}:{secs:02d} | "
-                f"REST polls={self._rest_poll_count} | "
-                f"MQTT msgs={self._mqtt_message_count}"
+            
+            # Build status line with colors
+            status_line = (
+                f"{Colors.BRIGHT_CYAN}{Colors.BOLD}Alive{Colors.RESET} "
+                f"{Colors.BRIGHT_WHITE}{hrs:02d}:{mins:02d}:{secs:02d}{Colors.RESET} | "
+                f"{Colors.BRIGHT_GREEN}REST polls{Colors.RESET}={Colors.GREEN}{self._rest_poll_count}{Colors.RESET} | "
+                f"{Colors.BRIGHT_MAGENTA}MQTT msgs{Colors.RESET}={Colors.MAGENTA}{self._mqtt_message_count}{Colors.RESET}"
             )
-            # pad with spaces if new status is shorter than previous, to fully overwrite
-            pad = " " * max(0, prev_len - len(status))
-            print("\r" + status + pad, end="", flush=True)
-            prev_len = len(status)
+            
+            # Get recent MQTT messages
+            with self._mqtt_lock:
+                recent_msgs = list(self._recent_mqtt_messages)
+            
+            # Build output lines
+            lines = [status_line]
+            if recent_msgs:
+                lines.append(f"\n{Colors.BRIGHT_YELLOW}Recent MQTT:{Colors.RESET}")
+                for msg in recent_msgs:
+                    lines.append(f"  {Colors.CYAN}→{Colors.RESET} {msg}")
+            
+            output = "\n".join(lines)
+            
+            # Move cursor up to overwrite previous output (except on first display)
+            if not first_display and prev_lines > 0:
+                print(CURSOR_UP.format(prev_lines), end="")
+            
+            # Clear and print each line
+            lines_to_print = output.split("\n")
+            for i, line in enumerate(lines_to_print):
+                print(CLEAR_LINE + CURSOR_START + line)
+            
+            # If new output has fewer lines, clear the remaining old lines
+            if len(lines_to_print) < prev_lines:
+                for _ in range(prev_lines - len(lines_to_print)):
+                    print(CLEAR_LINE)
+            
+            prev_lines = len(lines_to_print)
+            first_display = False
+        
         # ensure terminal moves to next line when stopping
         print()
 
