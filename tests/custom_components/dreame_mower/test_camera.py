@@ -36,6 +36,7 @@ def mock_config_entry():
     """Create a mock config entry."""
     config_entry = Mock(spec=pytest.importorskip("homeassistant.config_entries").ConfigEntry)
     config_entry.entry_id = "test_entry_id"
+    config_entry.options = {}
     return config_entry
 
 

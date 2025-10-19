@@ -18,7 +18,7 @@ from homeassistant.helpers.device_registry import format_mac
 from homeassistant.core import callback
 
 from .dreame.cloud.cloud_base import DreameMowerCloudBase
-from .const import CONF_NOTIFY, DOMAIN
+from .const import CONF_NOTIFY, CONF_MAP_ROTATION, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -366,9 +366,11 @@ class DreameMowerOptionsFlow(OptionsFlow):
             return self.async_create_entry(title="", data=user_input)
 
         current_notify = self.config_entry.options.get(CONF_NOTIFY)
+        current_rotation = self.config_entry.options.get(CONF_MAP_ROTATION, 0)
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema({
                 vol.Required(CONF_NOTIFY, default=current_notify): cv.multi_select(NOTIFICATION),
+                vol.Required(CONF_MAP_ROTATION, default=current_rotation): vol.In([0, 90, 180, 270]),
             }),
         )

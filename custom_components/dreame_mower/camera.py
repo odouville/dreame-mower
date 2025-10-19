@@ -13,7 +13,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DATA_COORDINATOR, DOMAIN
+from .const import DATA_COORDINATOR, DOMAIN, CONF_MAP_ROTATION
 from .coordinator import DreameMowerCoordinator
 from .entity import DreameMowerEntity
 
@@ -75,6 +75,9 @@ class DreameMowerCameraEntity(DreameMowerEntity, Camera):
         self._historical_files_cache: list[tuple[str, float]] = []  # [(file_path, mtime), ...]
         self._cache_built = False
         
+        # Track current rotation to detect changes
+        self._current_rotation = self.config_entry.options.get(CONF_MAP_ROTATION, 0)
+        
         # Register for property change notifications
         self.coordinator.device.register_property_callback(self._handle_property_change)
 
@@ -89,12 +92,32 @@ class DreameMowerCameraEntity(DreameMowerEntity, Camera):
         if not self._docked:
             await self._request_pose_coverage_property()
             self._start_pose_coverage_timer()
+        
+        # Listen for config entry options updates
+        self.async_on_remove(
+            self.config_entry.add_update_listener(self._async_config_entry_updated)
+        )
 
     async def async_will_remove_from_hass(self) -> None:
         """Called when entity is being removed from Home Assistant."""
         # Ensure timer is stopped and cleaned up
         self._stop_pose_coverage_timer()
         await super().async_will_remove_from_hass()
+
+    async def _async_config_entry_updated(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
+        """Handle config entry options update."""
+        new_rotation = entry.options.get(CONF_MAP_ROTATION, 0)
+        if new_rotation != self._current_rotation:
+            self._current_rotation = new_rotation
+            # Re-render the image with new rotation
+            if self._is_on:
+                if self._live_coordinates:
+                    # Re-render live image
+                    await self._async_update_live_image()
+                else:
+                    # Re-render static map
+                    await self._async_update_image()
+                self.async_write_ha_state()
 
     async def _request_pose_coverage_property(self) -> None:
         """Request POSE_COVERAGE_PROPERTY from device to maintain live data stream.
@@ -271,13 +294,12 @@ class DreameMowerCameraEntity(DreameMowerEntity, Camera):
 
     def _generate_live_image(self) -> bytes:
         """Generate live map image in SVG format with current coordinates overlay."""
-        # TODO: Add rotation configuration option
         return generate_svg_live_image(
             self._live_coordinates,
             self._base_map_boundary,
             self._current_map_data,
             self.coordinator,
-            rotation=0
+            rotation=self._current_rotation
         )
 
     @property
@@ -387,8 +409,7 @@ class DreameMowerCameraEntity(DreameMowerEntity, Camera):
 
     def _generate_map_image(self, data: dict[str, Any]) -> bytes:
         """Generate map image in SVG format from map data."""
-        # TODO: Add rotation configuration option
-        return generate_svg_map_image(data, self._historical_file_path, self.coordinator, rotation=0)
+        return generate_svg_map_image(data, self._historical_file_path, self.coordinator, rotation=self._current_rotation)
 
     @property
     def available(self) -> bool:
