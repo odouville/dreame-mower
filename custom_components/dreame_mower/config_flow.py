@@ -74,7 +74,7 @@ class DreameMowerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         config_entry: config_entries.ConfigEntry,
     ) -> OptionsFlow:
         """Get the options flow for this handler."""
-        return DreameMowerOptionsFlow(config_entry)
+        return DreameMowerOptionsFlow()
 
     def __init__(self) -> None:
         """Initialize the config flow."""
@@ -358,11 +358,6 @@ class DreameMowerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 class DreameMowerOptionsFlow(OptionsFlow):
     """Handle options flow for Dreame Mower."""
-
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        """Initialize options flow."""
-        self.config_entry = config_entry
-        _LOGGER.debug("DreameMowerOptionsFlow initialized for entry: %s", config_entry.entry_id)
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
