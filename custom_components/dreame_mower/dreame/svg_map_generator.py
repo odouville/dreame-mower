@@ -22,7 +22,7 @@ COLORS_SVG = {
     'live_background': '#add8e6',  # lightblue
     'map_boundary': '#006400',  # darkgreen
     'mowing_path': '#ffa500',  # orange
-    'trajectory': '#008000',  # green
+    'trajectory': '#1e90ff',  # dodgerblue
     'obstacle': "#ff4d00",  # blue
     'obstacle_fill': "#ff4d0065",  # lightblue
     'live_path': '#32cd32',  # lime
