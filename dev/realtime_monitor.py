@@ -91,7 +91,12 @@ from custom_components.dreame_mower.dreame.const import (  # noqa: E402
 )
 
 log = logging.getLogger("realtime_monitor")
-logging.basicConfig(level=logging.INFO, format="%(levelname)s:%(name)s:%(message)s")
+# Configure logging to go to stderr so it doesn't interfere with inline status display on stdout
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(levelname)s:%(name)s:%(message)s",
+    stream=sys.stderr
+)
 
 # File extension for logs (use .jsonl for JSON Lines)
 EXT = ".jsonl"
@@ -530,7 +535,14 @@ class RealtimeMonitor:
         prev_lines = 0
         first_display = True
         
+        # Debug logging
+        debug_log_path = self.log_root / "status_worker_debug.log"
+        debug_log_path.parent.mkdir(parents=True, exist_ok=True)
+        debug_log = open(debug_log_path, "w", encoding="utf-8")
+        iteration = 0
+        
         while not self.stop_event.wait(self._status_interval):
+            iteration += 1
             uptime = int(time.time() - self._start_time) if self._start_time else 0
             hrs, rem = divmod(uptime, 3600)
             mins, secs = divmod(rem, 60)
@@ -554,22 +566,38 @@ class RealtimeMonitor:
                 for msg in recent_msgs:
                     lines.append(f"  {Colors.CYAN}→{Colors.RESET} {msg}")
             
+            # Debug log
+            debug_log.write(f"\n=== Iteration {iteration} ===\n")
+            debug_log.write(f"prev_lines={prev_lines}, first_display={first_display}, len(lines)={len(lines)}\n")
+            debug_log.write(f"len(recent_msgs)={len(recent_msgs)}\n")
+            
             # Move cursor up to overwrite previous output (except on first display)
             if not first_display and prev_lines > 0:
+                debug_log.write(f"Writing CURSOR_UP({prev_lines})\n")
                 print(CURSOR_UP.format(prev_lines), end="")
             
             # Clear and print each line
-            for line in lines:
+            debug_log.write(f"Printing {len(lines)} lines:\n")
+            for i, line in enumerate(lines):
+                # Strip ANSI codes for debug log
+                clean_line = line.replace(Colors.RESET, "").replace(Colors.BRIGHT_CYAN, "").replace(Colors.BOLD, "")
+                clean_line = clean_line.replace(Colors.BRIGHT_WHITE, "").replace(Colors.BRIGHT_GREEN, "").replace(Colors.GREEN, "")
+                clean_line = clean_line.replace(Colors.BRIGHT_MAGENTA, "").replace(Colors.MAGENTA, "")
+                clean_line = clean_line.replace(Colors.BRIGHT_YELLOW, "").replace(Colors.CYAN, "")
+                debug_log.write(f"  Line {i}: {clean_line}\n")
                 print(CLEAR_LINE + CURSOR_START + line)
             
             # If new output has fewer lines, clear the remaining old lines
             if len(lines) < prev_lines:
+                debug_log.write(f"Clearing {prev_lines - len(lines)} extra lines\n")
                 for _ in range(prev_lines - len(lines)):
                     print(CLEAR_LINE)
             
+            debug_log.flush()
             prev_lines = len(lines)
             first_display = False
         
+        debug_log.close()
         # ensure terminal moves to next line when stopping
         print()
 
