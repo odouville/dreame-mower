@@ -130,11 +130,15 @@ def svg_path_from_segments(segments: List[List[List[int]]], bounds: Tuple[int, i
         # Convert first point and move to it
         pixel_x, pixel_y = coord_to_pixel(segment[0][0], segment[0][1], bounds, img_width, img_height)
         path_data.append(f"M {pixel_x} {pixel_y}")
+        prev_pixel = (pixel_x, pixel_y)
         
-        # Draw lines to subsequent points
+        # Draw lines to subsequent points, skipping consecutive duplicates
         for point in segment[1:]:
             pixel_x, pixel_y = coord_to_pixel(point[0], point[1], bounds, img_width, img_height)
-            path_data.append(f"L {pixel_x} {pixel_y}")
+            # Only add if this pixel position is different from the previous one
+            if (pixel_x, pixel_y) != prev_pixel:
+                path_data.append(f"L {pixel_x} {pixel_y}")
+                prev_pixel = (pixel_x, pixel_y)
     
     path_str = " ".join(path_data)
     return f'<path d="{path_str}" stroke="{stroke_color}" stroke-width="{stroke_width}" fill="none"/>'
