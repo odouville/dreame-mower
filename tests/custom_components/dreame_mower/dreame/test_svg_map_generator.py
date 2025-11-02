@@ -1,7 +1,6 @@
 """Tests for svg_map_generator module."""
 
 import json
-import re
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -23,21 +22,6 @@ from custom_components.dreame_mower.dreame.svg_map_generator import (
 # Path to test data
 TEST_DATA_DIR = Path(__file__).parent / "test_data"
 GOLDEN_JSON_FILE = TEST_DATA_DIR / "test_svg_map_generator.json"
-
-
-def normalize_svg_for_comparison(svg_bytes: bytes) -> bytes:
-    """Normalize SVG content for comparison by removing dynamic timestamps.
-    
-    Args:
-        svg_bytes: The SVG content as bytes
-        
-    Returns:
-        Normalized SVG content with timestamps removed
-    """
-    svg_text = svg_bytes.decode('utf-8')
-    # Replace timestamp with a fixed placeholder
-    svg_text = re.sub(r'Updated: \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}', 'Updated: TIMESTAMP', svg_text)
-    return svg_text.encode('utf-8')
 
 
 @pytest.fixture
@@ -328,12 +312,8 @@ class TestMapBoundaryMultiZone:
         with open(golden_svg_file, 'rb') as f:
             expected_result = f.read()
         
-        # Normalize both for comparison (removes dynamic timestamps)
-        normalized_result = normalize_svg_for_comparison(result)
-        normalized_expected = normalize_svg_for_comparison(expected_result)
-        
         # Compare actual output with golden file
-        assert normalized_result == normalized_expected, (
+        assert result == expected_result, (
             f"Generated SVG does not match golden file. "
             f"Actual output saved to {output_svg_file}. "
             f"If the changes are intentional, update the golden file."
@@ -362,12 +342,8 @@ class TestMapRotation:
         with open(golden_svg_file, 'rb') as f:
             expected_result = f.read()
         
-        # Normalize both for comparison (removes dynamic timestamps)
-        normalized_result = normalize_svg_for_comparison(result)
-        normalized_expected = normalize_svg_for_comparison(expected_result)
-        
         # Compare actual output with golden file
-        assert normalized_result == normalized_expected, (
+        assert result == expected_result, (
             f"Generated SVG does not match golden file. "
             f"Actual output saved to {rotated_svg_file}. "
             f"If the changes are intentional, update the golden file."
@@ -407,12 +383,8 @@ class TestMapRotation:
         with open(golden_svg_file, 'rb') as f:
             expected_result = f.read()
         
-        # Normalize both for comparison (removes dynamic timestamps)
-        normalized_result = normalize_svg_for_comparison(result)
-        normalized_expected = normalize_svg_for_comparison(expected_result)
-        
         # Compare actual output with golden file
-        assert normalized_result == normalized_expected, (
+        assert result == expected_result, (
             f"Generated SVG does not match golden file. "
             f"Actual output saved to {output_svg_file}. "
             f"If the changes are intentional, update the golden file."

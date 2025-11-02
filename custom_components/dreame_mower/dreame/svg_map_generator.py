@@ -555,9 +555,13 @@ def generate_svg_map_image(data: Dict[str, Any], historical_file_path: str | Non
             # Draw label
             svg_lines.append(f'<text x="{legend_x + 20}" y="{y_pos + 8}" font-family="Arial, sans-serif" font-size="10" fill="{COLORS_SVG["text_color"]}">{label}</text>')
         
-        # Add timestamp
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        timestamp_text = f"Updated: {timestamp}"
+        # Add timestamp from map data (use 'start' timestamp if available)
+        start_timestamp = data.get("start")
+        if start_timestamp:
+            timestamp = datetime.fromtimestamp(start_timestamp).strftime("%Y-%m-%d %H:%M:%S")
+            timestamp_text = f"Started: {timestamp}"
+        else:
+            timestamp_text = "No time information"
         timestamp_bg = svg_text_with_background(timestamp_text, 10, MAP_IMAGE_HEIGHT - 25, 10,
                                               COLORS_SVG['text_color'], COLORS_SVG['background'], 3)
         svg_lines.append(timestamp_bg)
