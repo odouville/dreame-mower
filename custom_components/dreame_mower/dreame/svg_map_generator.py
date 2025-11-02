@@ -562,7 +562,9 @@ def generate_svg_map_image(data: Dict[str, Any], historical_file_path: str | Non
         # Add timestamp from map data (use 'start' timestamp if available)
         start_timestamp = data.get("start")
         if start_timestamp:
-            timestamp = datetime.fromtimestamp(start_timestamp).strftime("%Y-%m-%d %H:%M:%S")
+            # Use UTC to ensure consistent timestamps across different timezones
+            from datetime import timezone
+            timestamp = datetime.fromtimestamp(start_timestamp, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
             timestamp_text = f"Started: {timestamp}"
         else:
             timestamp_text = "No time information"
