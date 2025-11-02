@@ -227,45 +227,12 @@ class DreameMowerDevice:
         return self._device_file_path
 
     @property
-    def dnd_enabled(self) -> bool | None:
-        """Return Do Not Disturb status."""
-        return self._scheduling_handler.dnd_enabled
-
-    @property
-    def dnd_start_time(self) -> int | None:
-        """Return DND start time in minutes from midnight."""
-        return self._scheduling_handler.dnd_start_time
-
-    @property
-    def dnd_end_time(self) -> int | None:
-        """Return DND end time in minutes from midnight."""
-        return self._scheduling_handler.dnd_end_time
-
-    @property
-    def timezone(self) -> str | None:
-        """Return device timezone."""
-        return self._scheduling_handler.timezone
-
-    @property
-    def device_time(self) -> str | None:
-        """Return device time."""
-        return self._scheduling_handler.device_time
-
-    @property
     def current_task_data(self) -> dict | None:
         """Return current task data from the TaskHandler."""
         task_handler = self._scheduling_handler._task_handler
         if task_handler.task_type is None:
             return None
         return task_handler.get_notification_data()
-
-    @property
-    def current_charging_schedule_data(self) -> dict | None:
-        """Return current charging schedule data from the ChargingHandler."""
-        dnd_time_handler = self._scheduling_handler._dnd_time_handler
-        if dnd_time_handler.payload_type.value != "charging_schedule":
-            return None
-        return dnd_time_handler.get_charging_notification_data()
 
     @property
     def temperature(self) -> float | None:

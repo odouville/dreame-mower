@@ -18,9 +18,6 @@ import pytest
 from unittest.mock import Mock, patch
 
 from custom_components.dreame_mower.dreame.device import DreameMowerDevice
-from custom_components.dreame_mower.dreame.property.scheduling import (
-    SCHEDULING_SIXTH_VARIANT_PROPERTY_NAME,
-)
 
 
 class TestDeviceMqttPropertyUpdate:
@@ -53,24 +50,6 @@ class TestDeviceMqttPropertyUpdate:
     @pytest.mark.parametrize(
         "mqtt_message,expected_property,expected_value_check",
         [
-            (# Issue #135: Sixth variant - obstacle avoidance setting change
-                {
-                    "id": 2039,
-                    "method": "properties_changed",
-                    "params": [{"did": "-1******95", "piid": 51, "siid": 2, "value": {"type": 1}}]
-                },
-                SCHEDULING_SIXTH_VARIANT_PROPERTY_NAME,
-                lambda v: v is not None and v.get("type") == 1
-            ),
-            (# Sixth variant with type 0
-                {
-                    "id": 2040,
-                    "method": "properties_changed",
-                    "params": [{"did": "-1******95", "piid": 51, "siid": 2, "value": {"type": 0}}]
-                },
-                SCHEDULING_SIXTH_VARIANT_PROPERTY_NAME,
-                lambda v: v is not None and v.get("type") == 0
-            ),
             (# Battery update
                 {
                     "id": 100,
@@ -88,15 +67,6 @@ class TestDeviceMqttPropertyUpdate:
                 },
                 "status",
                 lambda v: v == 13
-            ),
-            (# DND schedule update(
-                {
-                    "id": 200,
-                    "method": "properties_changed",
-                    "params": [{"did": "-1******95", "piid": 51, "siid": 2, "value": {"end": 900, "start": 600, "value": 1}}]
-                },
-                "scheduling_dnd",
-                lambda v: v is not None and v.get("enabled") is True
             ),
         ],
     )

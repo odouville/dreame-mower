@@ -35,20 +35,6 @@ class MowerControlAction(Enum):
     COMPLETED = "completed"
 
 
-def _parse_python_literal_to_json(value_str: str) -> Dict[str, Any]:
-    """Parse Python string literal to JSON dictionary."""
-    try:
-        # Convert Python literals to JSON format
-        cleaned = (value_str
-                  .replace("'", '"')          # Single to double quotes
-                  .replace('True', 'true')    # Python bool to JSON bool  
-                  .replace('False', 'false'))  # Python bool to JSON bool
-        
-        return json.loads(cleaned)
-    except json.JSONDecodeError as ex:
-        raise ValueError(f"Failed to parse Python literal: {value_str}") from ex
-
-
 class MowerControlStatusHandler:
     """Handler for mower control status property (2:56)."""
     
@@ -61,20 +47,15 @@ class MowerControlStatusHandler:
     def parse_value(self, value: Any) -> bool:
         """Parse mower control status value."""
         try:
-            # Handle string literal format (from MQTT)
-            if isinstance(value, str):
-                parsed_data = _parse_python_literal_to_json(value)
-            elif isinstance(value, dict):
-                parsed_data = value
-            else:
+            if not isinstance(value, dict):
                 _LOGGER.warning("Invalid mower control status value type: %s", type(value))
                 return False
             
             # Extract status array - required field
-            if "status" not in parsed_data:
+            if "status" not in value:
                 raise ValueError("Missing 'status' field in mower control data")
             
-            status_array = parsed_data["status"]
+            status_array = value["status"]
             if not isinstance(status_array, list):
                 raise ValueError(f"Invalid status array format: {status_array}")
             

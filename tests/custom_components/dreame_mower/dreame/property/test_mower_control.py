@@ -74,9 +74,9 @@ class TestMowerControlStatusHandler:
         assert self.handler.is_paused is None
         assert self.handler.is_completed is None
 
-    def test_parse_status_string_literal_format(self):
-        """Test parsing status from string literal format (MQTT)."""
-        status_data = "{'status': [[3, 4]]}"
+    def test_parse_status_dict_format_alternative(self):
+        """Test parsing status from dict format (alternative values)."""
+        status_data = {'status': [[3, 4]]}
         
         result = self.handler.parse_value(status_data)
         

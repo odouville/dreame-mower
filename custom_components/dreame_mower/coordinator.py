@@ -89,16 +89,10 @@ class DreameMowerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "battery_percent": self.device_battery_percent,
             "status": self.device_status,
             "bluetooth_connected": self.device_bluetooth_connected,
-            "dnd_enabled": self.device_dnd_enabled,
-            "dnd_start_time": self.device_dnd_start_time,
-            "dnd_end_time": self.device_dnd_end_time,
-            "timezone": self.device_timezone,
-            "device_time": self.device_time,
             "temperature": self.device_temperature,
             "charging_status": self.device_charging_status,
             "bms_phase": self.device_bms_phase,
             "current_task_data": self.current_task_data,
-            "current_charging_schedule_data": self.current_charging_schedule_data,
             "mowing_progress_percent": self.mowing_progress_percent,
             "current_area_sqm": self.current_area_sqm,
             "total_area_sqm": self.total_area_sqm,
@@ -169,31 +163,6 @@ class DreameMowerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         return self.device.bluetooth_connected
 
     @property
-    def device_dnd_enabled(self) -> bool | None:
-        """Return Do Not Disturb status."""
-        return self.device.dnd_enabled
-
-    @property
-    def device_dnd_start_time(self) -> int | None:
-        """Return DND start time in minutes from midnight."""
-        return self.device.dnd_start_time
-
-    @property
-    def device_dnd_end_time(self) -> int | None:
-        """Return DND end time in minutes from midnight."""
-        return self.device.dnd_end_time
-
-    @property
-    def device_timezone(self) -> str | None:
-        """Return device timezone."""
-        return self.device.timezone
-
-    @property
-    def device_time(self) -> str | None:
-        """Return device time."""
-        return self.device.device_time
-
-    @property
     def device_temperature(self) -> float | None:
         """Return temperature from last mowing session."""
         return self.device.temperature
@@ -212,11 +181,6 @@ class DreameMowerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def current_task_data(self) -> dict | None:
         """Return current task data from TaskHandler."""
         return self.device.current_task_data
-
-    @property
-    def current_charging_schedule_data(self) -> dict | None:
-        """Return current charging schedule data from ChargingHandler."""
-        return self.device.current_charging_schedule_data
 
     @property
     def device_code(self) -> int | None:
