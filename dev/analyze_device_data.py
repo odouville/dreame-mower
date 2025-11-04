@@ -37,21 +37,18 @@ Data Types Analyzed:
 - MAP.*: 24 items with coordinate data, boundaries, and mapping information
 - FBD_NTYPE.*: 2 items with forbidden area type configurations
 - OTA_INFO.*: 2 items with over-the-air update information
-
-Author: Advanced reverse engineering for Dreame mower integration
 """
 
 import json
 import logging
 import sys
 import os
-import time
-import threading
 import base64
 import struct
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Union, Optional
+from typing import Any, Dict, Union, Optional
+from datetime import datetime
 
 # Add the parent directory to the path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -173,6 +170,29 @@ class DeviceDataAnalyzer:
                 interpretations.append(f"Time @{i}: {hours:02d}:{minutes:02d}")
         
         return interpretations
+
+    def dump_device_data_to_json(self, data: Dict[str, Any]) -> None:
+        """Dump device data to JSON file with timestamp."""
+        try:
+            # Create logs directory if it doesn't exist
+            logs_dir = Path(__file__).parent / "logs"
+            logs_dir.mkdir(exist_ok=True)
+            
+            # Create timestamp-based filename
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            json_file = logs_dir / f"device_data_{timestamp}.json"
+            
+            # Write data to JSON file with nice formatting
+            with open(json_file, "w") as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+            
+            logger.info(f"💾 Device data dumped to: {json_file}")
+            print(f"💾 Device data saved to: {json_file}")
+            
+        except Exception as e:
+            logger.error(f"Error dumping device data to JSON: {e}")
+            import traceback
+            traceback.print_exc()
 
     def connect_to_device(self):
         """Connect to Dreame cloud via DreameMowerCloudDevice using .vscode/launch.json creds."""
@@ -890,6 +910,9 @@ class DeviceDataAnalyzer:
             # The data comes back directly as key-value pairs from getDeviceData endpoint
             comprehensive_data = data
             print(f"✅ Retrieved {len(comprehensive_data)} data items")
+            
+            # Dump raw device data to JSON file
+            self.dump_device_data_to_json(comprehensive_data)
             
             # Categorize and analyze all data types
             settings_data = {}
