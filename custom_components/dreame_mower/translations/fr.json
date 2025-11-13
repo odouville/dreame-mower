@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Choisissez le type de compte",
-        "description": "Sélectionnez votre type de compte pour l'intégration DreamE Mower.",
+        "description": "Sélectionnez votre type de compte pour l'intégration Dreame Mower.",
         "data": {
           "account_type": "Type de compte"
         }
@@ -14,7 +14,7 @@
           "password": "Mot de passe",
           "country": "Pays de serveur"
         },
-        "description": "Connectez-vous au nuage de Drenemehome."
+        "description": "Connectez-vous au cloud Dreamehome."
       },
       "mova": {
         "data": {
@@ -22,27 +22,27 @@
           "password": "Mot de passe",
           "country": "Pays de serveur"
         },
-        "description": "Connectez-vous au nuage Movahome."
+        "description": "Connectez-vous au cloud Movahome."
       },
       "devices": {
         "data": {
           "devices": "Appareils pris en charge"
         },
-        "description": "Veuillez sélectionner l'appareil DreamE Tipe que vous souhaitez configurer."
+        "description": "Veuillez sélectionner le robot tondeuse Dreame que vous souhaitez configurer."
       },
       "options": {
         "data": {
           "name": "Nom de l'appareil",
           "notify": "Types de notification"
         },
-        "description": "Configurez le nom de votre périphérique de tondeuse DreamE et les préférences de notification."
+        "description": "Configurez le nom de votre robot tondeuse Dreame et les préférences de notification."
       }
     },
     "error": {
       "cannot_connect": "Échec de la connexion.",
       "unsupported": "L'appareil n'est pas pris en charge",
       "credentials_incomplete": "Informations incomplètes, veuillez remplir le nom d'utilisateur, le mot de passe et le pays",
-      "login_error": "Je ne pouvais pas se connecter, vérifier les informations d'identification.",
+      "login_error": "La connexion a échoué, vérifier les informations d'identification.",
       "no_devices": "Aucun dispositif pris en charge trouvé dans ce compte sur le pays sélectionné."
     },
     "abort": {
@@ -53,7 +53,7 @@
     "step": {
       "init": {
         "title": "Options",
-        "description": "Configurer les paramètres de notification pour l'intégration de la tondeuse DreamE.",
+        "description": "Configurer les paramètres de notification pour l'intégration de la tondeuse Dreame.",
         "data": {
           "notify": "Types de notification"
         }
@@ -66,14 +66,14 @@
         "name": "Statut",
         "state": {
           "no_status": "Pas de statut",
-          "mowing": "Fauchage",
-          "standby": "Attendre",
+          "mowing": "Tonte",
+          "standby": "Attente",
           "paused": "Interrompu",
           "paused_due_to_errors": "Pause en raison d'erreurs",
           "returning_to_station_to_charge": "Retour à la station pour charger",
           "charging": "Chargement",
           "mapping": "Cartographie",
-          "charging_complete": "Charge complète",
+          "charging_complete": "Charge terminée",
           "updating": "Mise à jour"
         }
       },
@@ -81,14 +81,14 @@
         "name": "Statut de charge",
         "state": {
           "not_docked": "Pas amarré",
-          "charging": "Chargement",
-          "not_charging": "Ne pas charger",
+          "charging": "En charge",
+          "not_charging": "Pas en charge",
           "charging_completed": "Charge terminée",
-          "return_to_charge": "Retour à la charge"
+          "return_to_charge": "Retour à la station de charge"
         }
       },
       "mowing_progress": {
-        "name": "Tonde progressive"
+        "name": "Progression de la tonte"
       },
       "bluetooth_connection": {
         "name": "Bluetooth"
