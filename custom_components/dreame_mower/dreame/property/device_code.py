@@ -272,10 +272,22 @@ BASE_DEVICE_CODES: Dict[int, DeviceCodeDefinition] = {
         description="Blades are severely worn. Replace them soon.",
         code_type=DeviceCodeType.WARNING
     ),
+    29: DeviceCodeDefinition(
+        code=29,
+        name="CLEANING_BRUSH_SEVERELY_USED",
+        description="The cleaning brush is severely used. Replace it soon.",
+        code_type=DeviceCodeType.WARNING
+    ),
     31: DeviceCodeDefinition(
         code=31,
         name="FAILED_TO_RETURN_TO_DOCK",
         description="Failed to return to docking station",
+        code_type=DeviceCodeType.ERROR
+    ),
+    32: DeviceCodeDefinition(
+        code=32,
+        name="FAILED_TO_DOCK_IN_STATION",
+        description="Failed to dock in the charging station",
         code_type=DeviceCodeType.ERROR
     ),
     34: DeviceCodeDefinition(
